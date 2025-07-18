@@ -237,3 +237,47 @@ button:hover {
         height: 60vh;
     }
 }
+
+/* --- Анимации и улучшения --- */
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.chat-item, .search-result-item {
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+.chat-item:hover, .search-result-item:hover {
+    transform: translateX(5px);
+}
+
+.message {
+    animation: messageFadeIn 0.3s ease-out;
+}
+@keyframes messageFadeIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+input[type="text"], input[type="email"], input[type="password"] {
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(29, 161, 242, 0.2);
+    outline: none;
+}
+
+button:active {
+    transform: scale(0.97);
+}
+
+.auth-box, .chat-item, .search-result-item {
+    transition: box-shadow 0.3s ease;
+}
+.auth-box:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+}

@@ -1,0 +1,74 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мой Мессенджер</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div id="auth-container">
+        <div class="auth-box">
+            <h2>Вход</h2>
+            <form id="login-form">
+                <input type="email" id="login-email" placeholder="Email" required>
+                <input type="password" id="login-password" placeholder="Пароль" required>
+                <button type="submit">Войти</button>
+            </form>
+            <hr>
+            <h2>Регистрация</h2>
+            <form id="signup-form">
+                <input type="text" id="signup-nickname" placeholder="Ваш уникальный ник" required>
+                <input type="email" id="signup-email" placeholder="Email" required>
+                <input type="password" id="signup-password" placeholder="Пароль" required>
+                <button type="submit">Зарегистрироваться</button>
+            </form>
+            <p id="auth-error" class="error-message"></p>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <p>Вы вошли как: <strong id="current-user-nickname"></strong></p>
+                <button id="logout-btn">Выйти</button>
+            </div>
+            <div class="search-box">
+                <h3>Найти пользователя</h3>
+                <form id="search-form">
+                    <input type="text" id="search-nickname" placeholder="Введите ник...">
+                    <button type="submit">Найти</button>
+                </form>
+                <div id="search-results"></div>
+            </div>
+            <div id="chats-list-container">
+                <h3>Ваши чаты</h3>
+                <div id="chats-list"></div>
+            </div>
+        </div>
+        <div class="chat-area">
+            <div id="chat-window" class="hidden">
+                <div class="chat-header">
+                    <h3 id="chat-with-nickname"></h3>
+                </div>
+                <div id="messages-container"></div>
+                <form id="message-form">
+                    <input type="text" id="message-input" placeholder="Введите сообщение..." autocomplete="off">
+                    <button type="submit">Отправить</button>
+                </form>
+            </div>
+            <div id="chat-placeholder">
+                <p>Выберите чат или найдите пользователя, чтобы начать общение</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <script src="script.js"></script>
+
+</body>
+</html>

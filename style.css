@@ -1,0 +1,239 @@
+﻿:root {
+    --primary-bg: #f4f7f9;
+    --secondary-bg: #ffffff;
+    --border-color: #e1e8ed;
+    --primary-text: #14171a;
+    --secondary-text: #657786;
+    --accent-color: #1da1f2;
+    --accent-hover: #1a91da;
+    --sent-message-bg: #dcf8c6;
+    --received-message-bg: #ffffff;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    background-color: var(--primary-bg);
+    color: var(--primary-text);
+    overflow: hidden;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* --- Экран авторизации --- */
+#auth-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.auth-box {
+    background: var(--secondary-bg);
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+}
+
+h2 {
+    text-align: center;
+    color: var(--primary-text);
+}
+
+input[type="email"], input[type="password"], input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 1rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    box-sizing: border-box;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    background-color: var(--accent-color);
+    color: white;
+    font-weight: bold;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: var(--accent-hover);
+}
+
+.error-message {
+    color: #e0245e;
+    text-align: center;
+    margin-top: 1rem;
+    font-size: 0.9em;
+}
+
+/* --- Основное приложение --- */
+#app-container {
+    display: flex;
+    height: 100vh;
+}
+
+.sidebar {
+    width: 350px;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    background-color: var(--secondary-bg);
+}
+
+.sidebar-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#logout-btn {
+    width: auto;
+    padding: 8px 16px;
+    background-color: #e0245e;
+    margin-top: 10px;
+}
+#logout-btn:hover {
+    background-color: #c81f52;
+}
+
+.search-box {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#search-form {
+    display: flex;
+}
+#search-form input {
+    flex-grow: 1;
+    margin-right: 0.5rem;
+}
+#search-form button {
+    width: auto;
+    padding: 0 1rem;
+}
+
+#search-results .search-result-item {
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 8px;
+}
+#search-results .search-result-item:hover {
+    background-color: var(--primary-bg);
+}
+
+
+#chats-list-container {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+#chats-list .chat-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#chats-list .chat-item:hover, #chats-list .chat-item.active {
+    background-color: var(--primary-bg);
+}
+
+/* --- Область чата --- */
+.chat-area {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#chat-placeholder {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: var(--secondary-text);
+}
+
+#chat-window {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.chat-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--secondary-bg);
+}
+
+#messages-container {
+    flex-grow: 1;
+    padding: 1rem;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.message {
+    padding: 10px 15px;
+    border-radius: 18px;
+    margin-bottom: 8px;
+    max-width: 70%;
+    word-wrap: break-word;
+}
+
+.sent {
+    background-color: var(--sent-message-bg);
+    align-self: flex-end;
+    border-bottom-right-radius: 4px;
+}
+
+.received {
+    background-color: var(--received-message-bg);
+    align-self: flex-start;
+    border: 1px solid var(--border-color);
+    border-bottom-left-radius: 4px;
+}
+
+#message-form {
+    display: flex;
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+    background: var(--secondary-bg);
+}
+
+#message-input {
+    flex-grow: 1;
+    margin-right: 1rem;
+}
+
+#message-form button {
+    width: auto;
+    padding: 0 2rem;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        height: 40vh;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+    }
+    #app-container {
+        flex-direction: column;
+    }
+    .chat-area {
+        height: 60vh;
+    }
+}

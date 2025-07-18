@@ -116,6 +116,7 @@ document.getElementById('search-form').addEventListener('submit', async e => {
             const foundUser = { id: doc.id, ...doc.data() };
             const resultItem = document.createElement('div');
             resultItem.className = 'search-result-item';
+            resultItem.classList.add('fade-in');
             resultItem.textContent = foundUser.nickname;
             resultItem.onclick = () => startChat(foundUser);
             resultsContainer.appendChild(resultItem);
@@ -165,6 +166,8 @@ function loadChats() {
 
             const chatItem = document.createElement('div');
             chatItem.className = 'chat-item';
+            chatItem.classList.add('fade-in');
+
             if (chat.id === activeChatId) {
                 chatItem.classList.add('active');
             }
@@ -225,7 +228,8 @@ function displayMessage(message) {
     const messagesContainer = document.getElementById('messages-container');
     const messageElement = document.createElement('div');
     messageElement.classList.add('message');
-    
+    messageElement.classList.add('fade-in');
+  
     if (message.senderId === currentUser.uid) {
         messageElement.classList.add('sent');
     } else {

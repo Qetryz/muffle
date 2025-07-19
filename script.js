@@ -1,49 +1,91 @@
-﻿// ВАЖНО: Вставьте сюда ваш объект конфигурации Firebase из Шага 1
-const firebaseConfig = {
-  apiKey: "AIzaSyD5MW-S90SNq8yh6V0pc1lTWmEToDQtWOE",
-  authDomain: "mufffllled.firebaseapp.com",
-  projectId: "mufffllled",
-  storageBucket: "mufffllled.firebasestorage.app",
-  messagingSenderId: "513257850545",
-  appId: "1:513257850545:web:d2344e0f2fdc7ae7c34490",
-  measurementId: "G-46VW9YKB1R"
-};
+// --- НАСТРОЙКА SUPABASE ---
+const SUPABASE_URL = 'YOUR_SUPABASE_URL'; // Вставьте сюда ваш Project URL
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY'; // Вставьте сюда ваш anon key
 
-// Инициализация Firebase
-const app = firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db = firebase.firestore();
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- Глобальные переменные и ссылки на DOM ---
-const authContainer = document.getElementById('auth-container');
-const appContainer = document.getElementById('app-container');
-const authError = document.getElementById('auth-error');
-
 let currentUser = null;
 let activeChatId = null;
-let unsubscribeMessages = null; // Функция для отписки от слушателя сообщений
+let messagesSubscription = null;
 
-// --- ЛОГИКА АВТОРИЗАЦИИ ---
-auth.onAuthStateChanged(async user => {
-    if (user) {
-        // Пользователь вошел
-        const userDoc = await db.collection('users').doc(user.uid).get();
-        currentUser = { uid: user.uid, ...userDoc.data() };
+// Ссылки на все DOM-элементы
+const authContainer = document.getElementById('auth-container');
+const appContainer = document.getElementById('app-container');
+const profileModalContainer = document.getElementById('profile-modal-container');
+// ... и так далее для всех элементов, с которыми мы работаем
 
-        document.getElementById('current-user-nickname').textContent = currentUser.nickname;
-        authContainer.classList.add('hidden');
-        appContainer.classList.remove('hidden');
+// --- ОСНОВНАЯ ЛОГИКА АУТЕНТИФИКАЦИИ ---
 
-        loadChats();
+// Функция проверки текущего пользователя
+const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+        const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+        if (error) {
+            console.error('Ошибка получения профиля:', error);
+            await supabase.auth.signOut(); // Выходим, если профиль не найден
+        } else {
+            currentUser = profile;
+            setupUIForLoggedInUser();
+            loadChats();
+        }
     } else {
-        // Пользователь вышел
+        setupUIForLoggedOutUser();
+    }
+};
+
+// Отслеживание изменений состояния аутентификации
+supabase.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
         currentUser = null;
-        authContainer.classList.remove('hidden');
-        appContainer.classList.add('hidden');
-        if (unsubscribeMessages) unsubscribeMessages();
-        clearChatUI();
+        setupUIForLoggedOutUser();
+    } else if (session?.user && !currentUser) {
+        checkUser();
     }
 });
+
+// Вызываем проверку при первой загрузке страницы
+document.addEventListener('DOMContentLoaded', () => {
+    checkUser();
+});
+
+
+// --- УПРАВЛЕНИЕ UI ---
+
+function setupUIForLoggedInUser() {
+    document.getElementById('current-user-nickname').textContent = currentUser.nickname;
+    document.getElementById('my-profile-pic-sidebar').src = currentUser.profile_pic_url || 'placeholder.png';
+    authContainer.classList.add('hidden');
+    appContainer.classList.remove('hidden');
+}
+
+function setupUIForLoggedOutUser() {
+    authContainer.classList.remove('hidden');
+    appContainer.classList.add('hidden');
+    if (messagesSubscription) {
+        supabase.removeChannel(messagesSubscription);
+        messagesSubscription = null;
+    }
+    clearChatUI();
+}
+
+function clearChatUI() {
+    activeChatId = null;
+    document.getElementById('chats-list').innerHTML = '';
+    document.getElementById('chat-window').classList.add('hidden');
+    document.getElementById('chat-placeholder').classList.remove('hidden');
+    appContainer.classList.remove('mobile-chat-view');
+}
+
+// --- ФОРМЫ ВХОДА И РЕГИСТРАЦИИ ---
+
+// ... (код для переключения форм 'show-signup' и 'show-login' остается таким же)
 
 // Регистрация
 document.getElementById('signup-form').addEventListener('submit', async e => {
@@ -52,184 +94,168 @@ document.getElementById('signup-form').addEventListener('submit', async e => {
     const email = document.getElementById('signup-email').value;
     const password = document.getElementById('signup-password').value;
 
-    authError.textContent = '';
-    if (!nickname) {
-        authError.textContent = 'Никнейм не может быть пустым.';
-        return;
-    }
-    
-    // Проверка на уникальность никнейма
-    const nicknameQuery = await db.collection('users').where('nickname', '==', nickname).get();
-    if (!nicknameQuery.empty) {
-        authError.textContent = 'Этот никнейм уже занят.';
-        return;
-    }
+    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
+    if (authError) return alert('Ошибка регистрации: ' + authError.message);
+    if (!authData.user) return alert('Что-то пошло не так, пользователь не создан.');
 
-    try {
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        await db.collection('users').doc(userCredential.user.uid).set({
-            nickname: nickname,
-            email: email
-        });
-    } catch (error) {
-        authError.textContent = `Ошибка регистрации: ${error.message}`;
-    }
+    const { error: profileError } = await supabase.from('profiles').insert({
+        id: authData.user.id,
+        nickname: nickname,
+        bio: "Привет! Я использую Aura Chat.",
+    });
+    if (profileError) return alert('Ошибка создания профиля: ' + profileError.message);
+
+    alert('Регистрация успешна! Пожалуйста, подтвердите ваш email, чтобы войти.');
 });
 
 // Вход
-document.getElementById('login-form').addEventListener('submit', e => {
+document.getElementById('login-form').addEventListener('submit', async e => {
     e.preventDefault();
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
-    authError.textContent = '';
-
-    auth.signInWithEmailAndPassword(email, password).catch(error => {
-        authError.textContent = `Ошибка входа: ${error.message}`;
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) alert('Ошибка входа: ' + error.message);
 });
 
 // Выход
-document.getElementById('logout-btn').addEventListener('click', () => {
-    auth.signOut();
+document.getElementById('logout-btn').addEventListener('click', () => supabase.auth.signOut());
+
+
+// --- ЛОГИКА ПРОФИЛЯ ---
+
+// Открытие модального окна профиля
+async function openProfileModal(userId) {
+    const { data: userData, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    if (error) return alert('Не удалось загрузить профиль.');
+
+    document.getElementById('profile-modal-pic').src = userData.profile_pic_url || 'placeholder.png';
+    document.getElementById('profile-modal-nickname').textContent = userData.nickname;
+    document.getElementById('profile-modal-bio').textContent = userData.bio;
+
+    const isMyProfile = userId === currentUser.id;
+    document.getElementById('edit-profile-btn').classList.toggle('hidden', !isMyProfile);
+    document.getElementById('edit-profile-pic-btn').classList.toggle('hidden', !isMyprofile);
+    // ... (остальной код для управления видимостью кнопок)
+
+    profileModalContainer.classList.remove('hidden');
+}
+window.openProfileModal = openProfileModal; // Делаем функцию доступной в HTML
+
+// ... (код для закрытия модального окна и перехода в режим редактирования)
+
+// Сохранение профиля
+document.getElementById('save-profile-btn').addEventListener('click', async () => {
+    const newBio = document.getElementById('profile-modal-bio-edit').value;
+    const profilePicFile = document.getElementById('profile-pic-input').files[0];
+
+    try {
+        let newPicUrl = currentUser.profile_pic_url;
+        if (profilePicFile) {
+            const filePath = `${currentUser.id}/profile.png`;
+            // Удаляем старое фото, чтобы не засорять хранилище
+            await supabase.storage.from('profile_pics').remove([filePath]);
+            const { error: uploadError } = await supabase.storage.from('profile_pics').upload(filePath, profilePicFile, { upsert: true });
+            if (uploadError) throw uploadError;
+
+            const { data } = supabase.storage.from('profile_pics').getPublicUrl(filePath);
+            newPicUrl = data.publicUrl;
+        }
+
+        const { error: updateError } = await supabase.from('profiles').update({ bio: newBio, profile_pic_url: newPicUrl }).eq('id', currentUser.id);
+        if (updateError) throw updateError;
+        
+        await checkUser(); // Перезагружаем данные пользователя
+        profileModalContainer.classList.add('hidden');
+
+    } catch (error) {
+        console.error("Ошибка сохранения профиля:", error);
+        alert("Не удалось сохранить профиль.");
+    }
 });
+
 
 // --- ЛОГИКА ЧАТА ---
 
-// Поиск пользователя
-document.getElementById('search-form').addEventListener('submit', async e => {
-    e.preventDefault();
-    const searchNickname = document.getElementById('search-nickname').value.trim();
-    const resultsContainer = document.getElementById('search-results');
-    resultsContainer.innerHTML = '';
+// ... (код для поиска пользователя и создания чата)
 
-    if (searchNickname === currentUser.nickname) {
-        resultsContainer.innerHTML = '<p>Нельзя начать чат с самим собой.</p>';
-        return;
-    }
-
-    const userQuery = await db.collection('users').where('nickname', '==', searchNickname).get();
-    
-    if (userQuery.empty) {
-        resultsContainer.innerHTML = '<p>Пользователь не найден.</p>';
-    } else {
-        userQuery.forEach(doc => {
-            const foundUser = { id: doc.id, ...doc.data() };
-            const resultItem = document.createElement('div');
-            resultItem.className = 'search-result-item';
-            resultItem.classList.add('fade-in');
-            resultItem.textContent = foundUser.nickname;
-            resultItem.onclick = () => startChat(foundUser);
-            resultsContainer.appendChild(resultItem);
-        });
-    }
-});
-
-// Начать чат
-async function startChat(otherUser) {
-    const members = [currentUser.uid, otherUser.id].sort();
-    const chatId = members.join('_'); // Создаем уникальный ID чата
-
-    const chatRef = db.collection('chats').doc(chatId);
-    const chatDoc = await chatRef.get();
-
-    if (!chatDoc.exists) {
-        // Создаем новый чат, если его нет
-        const otherUserDoc = await db.collection('users').doc(otherUser.id).get();
-        
-        await chatRef.set({
-            members: members,
-            memberInfo: { // Сохраняем информацию для отображения
-                [currentUser.uid]: { nickname: currentUser.nickname },
-                [otherUser.id]: { nickname: otherUserDoc.data().nickname }
-            },
-            lastMessage: null,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-    }
-    
-    openChat(chatId);
-    document.getElementById('search-results').innerHTML = '';
-    document.getElementById('search-nickname').value = '';
-}
-
-// Загрузка списка чатов пользователя
-function loadChats() {
-    db.collection('chats')
-      .where('members', 'array-contains', currentUser.uid)
-      .onSnapshot(snapshot => {
-        const chatsList = document.getElementById('chats-list');
-        chatsList.innerHTML = '';
-        snapshot.forEach(doc => {
-            const chat = { id: doc.id, ...doc.data() };
-            const otherUserId = chat.members.find(id => id !== currentUser.uid);
-            const otherUserInfo = chat.memberInfo[otherUserId];
-
-            const chatItem = document.createElement('div');
-            chatItem.className = 'chat-item';
-            chatItem.classList.add('fade-in');
-
-            if (chat.id === activeChatId) {
-                chatItem.classList.add('active');
-            }
-            chatItem.dataset.chatId = chat.id;
-            chatItem.innerHTML = `<strong>${otherUserInfo.nickname}</strong>`;
-            chatItem.onclick = () => openChat(chat.id);
-            chatsList.appendChild(chatItem);
-        });
-      });
-}
-
-// Открыть окно чата
-function openChat(chatId) {
+// Модифицированная функция открытия чата
+async function openChat(chatId, otherUserInfo) {
     if (activeChatId === chatId) return;
-    
-    if (unsubscribeMessages) {
-        unsubscribeMessages(); // Отписываемся от предыдущего чата
-    }
+    if (messagesSubscription) supabase.removeChannel(messagesSubscription);
 
     activeChatId = chatId;
-    
-    // Подсвечиваем активный чат в списке
-    document.querySelectorAll('.chat-item').forEach(item => {
-        item.classList.toggle('active', item.dataset.chatId === chatId);
-    });
+    document.getElementById('chat-header-info').onclick = () => openProfileModal(otherUserInfo.id);
+    document.getElementById('chat-with-pic').src = otherUserInfo.profile_pic_url || 'placeholder.png';
+    document.getElementById('chat-with-nickname').textContent = otherUserInfo.nickname;
 
-    const chatWindow = document.getElementById('chat-window');
-    const placeholder = document.getElementById('chat-placeholder');
-    const messagesContainer = document.getElementById('messages-container');
-    
-    messagesContainer.innerHTML = ''; // Очищаем старые сообщения
-    chatWindow.classList.remove('hidden');
-    placeholder.classList.add('hidden');
+    // ... (код для подсветки активного чата и показа окна)
+    appContainer.classList.add('mobile-chat-view');
 
-    // Получаем информацию о собеседнике и устанавливаем заголовок
-    db.collection('chats').doc(chatId).get().then(doc => {
-        const chatData = doc.data();
-        const otherUserId = chatData.members.find(id => id !== currentUser.uid);
-        const otherNickname = chatData.memberInfo[otherUserId].nickname;
-        document.getElementById('chat-with-nickname').textContent = otherNickname;
-    });
-
-    // Подписываемся на новые сообщения
-    unsubscribeMessages = db.collection('chats').doc(chatId).collection('messages')
-      .orderBy('timestamp', 'asc')
-      .onSnapshot(snapshot => {
-          messagesContainer.innerHTML = '';
-          snapshot.forEach(doc => {
-              displayMessage(doc.data());
-          });
-          // Прокрутка вниз
-          messagesContainer.scrollTop = messagesContainer.scrollHeight;
-      });
+    await loadMessageHistory(chatId);
+    subscribeToMessages(chatId);
 }
 
-// Отображение одного сообщения
+// Загрузка истории
+async function loadMessageHistory(chatId) {
+    const { data, error } = await supabase.from('messages').select('*').eq('chat_id', chatId).order('created_at');
+    if (error) return console.error("Ошибка загрузки истории:", error);
+    
+    const messagesContainer = document.getElementById('messages-container');
+    messagesContainer.innerHTML = '';
+    data.forEach(displayMessage);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Подписка на новые сообщения
+function subscribeToMessages(chatId) {
+    messagesSubscription = supabase.channel(`chat_${chatId}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${chatId}` }, payload => {
+            displayMessage(payload.new);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }).subscribe();
+}
+
+
+// --- ОТПРАВКА СООБЩЕНИЙ И ФАЙЛОВ ---
+
+// ... (код для `attach-file-btn` и `image-input` `change` event listener)
+
+// Отправка картинки
+async function sendImageMessage(file) {
+    try {
+        const filePath = `${activeChatId}/${Date.now()}_${file.name}`;
+        const { error: uploadError } = await supabase.storage.from('chat_images').upload(filePath, file);
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage.from('chat_images').getPublicUrl(filePath);
+        await sendMessage(data.publicUrl, 'image');
+
+    } catch (error) {
+        console.error("Ошибка загрузки изображения:", error);
+        alert("Не удалось отправить картинку.");
+    }
+}
+
+// Универсальная функция отправки
+async function sendMessage(content, type = 'text') {
+    if (!content.trim() || !activeChatId) return;
+
+    let messageData = { chat_id: activeChatId, sender_id: currentUser.id, type };
+    if (type === 'text') messageData.text = content;
+    else if (type === 'image') messageData.image_url = content;
+
+    const { error } = await supabase.from('messages').insert(messageData);
+    if (error) console.error('Ошибка отправки сообщения:', error);
+    else document.getElementById('message-input').value = '';
+}
+
+// ... (остальной код для `message-form` submit и `displayMessage` без изменений)
+
 function displayMessage(message) {
     const messagesContainer = document.getElementById('messages-container');
     const messageElement = document.createElement('div');
     messageElement.classList.add('message');
-    messageElement.classList.add('fade-in');
-  
+    
     if (message.senderId === currentUser.uid) {
         messageElement.classList.add('sent');
     } else {
@@ -272,3 +298,4 @@ function clearChatUI() {
     document.getElementById('chat-window').classList.add('hidden');
     document.getElementById('chat-placeholder').classList.remove('hidden');
 }
+

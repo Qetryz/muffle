@@ -88,26 +88,41 @@ function clearChatUI() {
 // ... (код для переключения форм 'show-signup' и 'show-login' остается таким же)
 
 // Регистрация
+// Регистрация
 document.getElementById('signup-form').addEventListener('submit', async e => {
     e.preventDefault();
     const nickname = document.getElementById('signup-nickname').value.trim();
     const email = document.getElementById('signup-email').value;
     const password = document.getElementById('signup-password').value;
-
-    const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
-    if (authError) return alert('Ошибка регистрации: ' + authError.message);
-    if (!authData.user) return alert('Что-то пошло не так, пользователь не создан.');
-
-    const { error: profileError } = await supabase.from('profiles').insert({
-        id: authData.user.id,
-        nickname: nickname,
-        bio: "Привет! Я использую Aura Chat.",
+    
+    // 1. Создаем пользователя в системе аутентификации Supabase
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+            // ВАЖНО: Добавляем никнейм в 'data'
+            // Это позволит нам создать профиль в одной транзакции, используя триггер
+            data: {
+                nickname: nickname,
+                bio: "Привет! Я использую Aura Chat."
+            }
+        }
     });
-    if (profileError) return alert('Ошибка создания профиля: ' + profileError.message);
 
-    alert('Регистрация успешна! Пожалуйста, подтвердите ваш email, чтобы войти.');
+    if (authError) {
+        // Отображаем ошибку, если она есть
+        document.getElementById('auth-error').textContent = 'Ошибка регистрации: ' + authError.message;
+        return;
+    }
+    
+    if (authData.user) {
+        // Если все прошло успешно
+        document.getElementById('auth-error').textContent = ''; // Очищаем старые ошибки
+        alert('Регистрация успешна! Пожалуйста, проверьте свою почту и подтвердите аккаунт, чтобы войти.');
+        // Переключаем пользователя обратно на форму входа
+        document.getElementById('show-login').click();
+    }
 });
-
 // Вход
 document.getElementById('login-form').addEventListener('submit', async e => {
     e.preventDefault();
